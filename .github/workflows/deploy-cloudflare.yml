@@ -50,9 +50,10 @@ jobs:
           NEXT_PUBLIC_DOUBAN_IMAGE_PROXY_TYPE: ${{ vars.NEXT_PUBLIC_DOUBAN_IMAGE_PROXY_TYPE }}
           # Upstash 凭据：Cloudflare 运行时不支持 TCP，必须用 Upstash；
           # 且 next build 在「构建阶段」就要读取（见 src/lib/upstash.db.ts），
-          # 因此必须在构建 env 中提供，不能只设为运行时 Secret。
-          UPSTASH_URL: ${{ secrets.UPSTASH_URL }}
-          UPSTASH_TOKEN: ${{ secrets.UPSTASH_TOKEN }}
+          # 因此必须在构建 env 中提供。已「写死」默认值：若仓库 Secrets 中设置了则优先使用。
+          # ⚠️ 这些值会随工作流提交到公开仓库，如泄露请在 Upstash 控制台重置。
+          UPSTASH_URL: ${{ secrets.UPSTASH_URL || 'https://awaited-lizard-38990.upstash.io' }}
+          UPSTASH_TOKEN: ${{ secrets.UPSTASH_TOKEN || 'AZhOAAIgcDFlZDg4NTBmNzE0ODc0NDM1ODVmMmJkOGEwYWE5NTdjMw' }}
         run: node scripts/generate-manifest.js && npx @cloudflare/next-on-pages
 
       - name: Deploy to Cloudflare Pages
@@ -68,8 +69,8 @@ jobs:
         run: |
           echo "${{ secrets.USERNAME }}" | npx wrangler pages secret put USERNAME --project-name lunatv
           echo "${{ secrets.PASSWORD }}" | npx wrangler pages secret put PASSWORD --project-name lunatv
-          echo "${{ secrets.UPSTASH_URL }}" | npx wrangler pages secret put UPSTASH_URL --project-name lunatv
-          echo "${{ secrets.UPSTASH_TOKEN }}" | npx wrangler pages secret put UPSTASH_TOKEN --project-name lunatv
+          echo "https://awaited-lizard-38990.upstash.io" | npx wrangler pages secret put UPSTASH_URL --project-name lunatv
+          echo "AZhOAAIgcDFlZDg4NTBmNzE0ODc0NDM1ODVmMmJkOGEwYWE5NTdjMw" | npx wrangler pages secret put UPSTASH_TOKEN --project-name lunatv
 
       - name: Deploy proxy Worker
         env:
