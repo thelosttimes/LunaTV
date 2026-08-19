@@ -1,0 +1,73 @@
+name: Deploy to Cloudflare Pages
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: cloudflare-pages
+  cancel-in-progress: true
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 10
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: pnpm
+
+      - name: Install dependencies
+        run: pnpm install
+
+      - name: Install Cloudflare tooling
+        run: pnpm add -D wrangler @cloudflare/next-on-pages
+
+      - name: Build for Cloudflare Pages
+        env:
+          NEXT_ON_PAGES: "1"
+          NEXT_PUBLIC_STORAGE_TYPE: "upstash"
+          NEXT_PUBLIC_SITE_NAME: ${{ vars.NEXT_PUBLIC_SITE_NAME || 'LunaTV' }}
+          NEXT_PUBLIC_SEARCH_MAX_PAGE: ${{ vars.NEXT_PUBLIC_SEARCH_MAX_PAGE || '5' }}
+          NEXT_PUBLIC_FLUID_SEARCH: ${{ vars.NEXT_PUBLIC_FLUID_SEARCH || 'true' }}
+          SITE_BASE: ${{ vars.SITE_BASE }}
+          ANNOUNCEMENT: ${{ vars.ANNOUNCEMENT }}
+          NEXT_PUBLIC_DISABLE_YELLOW_FILTER: ${{ vars.NEXT_PUBLIC_DISABLE_YELLOW_FILTER }}
+          NEXT_PUBLIC_DOUBAN_PROXY_TYPE: ${{ vars.NEXT_PUBLIC_DOUBAN_PROXY_TYPE }}
+          NEXT_PUBLIC_DOUBAN_IMAGE_PROXY_TYPE: ${{ vars.NEXT_PUBLIC_DOUBAN_IMAGE_PROXY_TYPE }}
+        run: npx @cloudflare/next-on-pages
+
+      - name: Deploy to Cloudflare Pages
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+        run: npx wrangler pages deploy .vercel/output/static --project-name lunatv --commit-dirty=true
+
+      - name: Set Pages runtime secrets
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+        run: |
+          echo "${{ secrets.USERNAME }}" | npx wrangler pages secret put USERNAME --project-name lunatv
+          echo "${{ secrets.PASSWORD }}" | npx wrangler pages secret put PASSWORD --project-name lunatv
+          echo "${{ secrets.UPSTASH_URL }}" | npx wrangler pages secret put UPSTASH_URL --project-name lunatv
+          echo "${{ secrets.UPSTASH_TOKEN }}" | npx wrangler pages secret put UPSTASH_TOKEN --project-name lunatv
+
+      - name: Deploy proxy Worker
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+        run: npx wrangler deploy --config wrangler.proxy.toml

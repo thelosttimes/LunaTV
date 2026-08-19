@@ -1,0 +1,10 @@
+# LunaTV 代理 Worker 配置（独立于 Pages 项目）
+# 部署：npx wrangler deploy --config wrangler.proxy.toml
+# 文档：./CLOUDFLARE_DEPLOY.md
+
+name = "lunatv-proxy"
+main = "proxy.worker.js"
+compatibility_date = "2024-11-01"
+
+# 可选：绑定自定义域名（取消注释并修改 pattern）
+# routes = [{ pattern = "proxy.example.com", custom_domain = true }]
