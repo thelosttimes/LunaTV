@@ -1,8 +1,11 @@
 /** @type {import('next').NextConfig} */
 /* eslint-disable @typescript-eslint/no-var-requires */
 
+// Cloudflare Pages 构建时禁用 standalone（next-on-pages 不兼容 output: 'standalone'）
+const isCloudflareBuild =
+  process.env.NEXT_ON_PAGES === '1' || process.env.CF_PAGES === '1';
 const nextConfig = {
-  output: 'standalone',
+  ...(isCloudflareBuild ? {} : { output: 'standalone' }),
   eslint: {
     dirs: ['src'],
   },
