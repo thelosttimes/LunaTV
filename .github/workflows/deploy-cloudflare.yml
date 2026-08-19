@@ -48,6 +48,11 @@ jobs:
           NEXT_PUBLIC_DISABLE_YELLOW_FILTER: ${{ vars.NEXT_PUBLIC_DISABLE_YELLOW_FILTER }}
           NEXT_PUBLIC_DOUBAN_PROXY_TYPE: ${{ vars.NEXT_PUBLIC_DOUBAN_PROXY_TYPE }}
           NEXT_PUBLIC_DOUBAN_IMAGE_PROXY_TYPE: ${{ vars.NEXT_PUBLIC_DOUBAN_IMAGE_PROXY_TYPE }}
+          # Upstash 凭据：Cloudflare 运行时不支持 TCP，必须用 Upstash；
+          # 且 next build 在「构建阶段」就要读取（见 src/lib/upstash.db.ts），
+          # 因此必须在构建 env 中提供，不能只设为运行时 Secret。
+          UPSTASH_URL: ${{ secrets.UPSTASH_URL }}
+          UPSTASH_TOKEN: ${{ secrets.UPSTASH_TOKEN }}
         run: node scripts/generate-manifest.js && npx @cloudflare/next-on-pages
 
       - name: Deploy to Cloudflare Pages
