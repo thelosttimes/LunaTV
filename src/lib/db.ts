@@ -23,7 +23,7 @@ function createStorage(): IStorage {
     case 'upstash':
       return new UpstashRedisStorage();
     case 'kvrocks':
-      return new KvrocksStorage();
+    return new KvrocksStorage();
     case 'localstorage':
     default:
       return null as unknown as IStorage;
@@ -47,26 +47,44 @@ export function generateStorageKey(source: string, id: string): string {
 
 // 导出便捷方法
 export class DbManager {
-  private storage: IStorage;
+  private _storage: IStorage | null = null;
   private migrationPromise: Promise<void> | null = null;
 
   constructor() {
-    this.storage = getStorage();
-    // 启动时自动触发数据迁移（异步，不阻塞构造）
-    if (this.storage && typeof this.storage.migrateData === 'function') {
-      this.migrationPromise = this.storage.migrateData().then(async () => {
-        // 数据结构迁移完成后，执行密码哈希迁移
-        if (typeof this.storage.migratePasswords === 'function') {
-          await this.storage.migratePasswords();
-        }
-      }).catch((err) => {
-        console.error('数据迁移异常:', err);
-      });
+    // 注意：存储实例延迟到首次访问时创建（见下方 storage getter）。
+    // 这样 next build / 模块导入阶段就不会因缺少 UPSTASH_URL / UPSTASH_TOKEN
+    // 而抛出 "UPSTASH_URL and UPSTASH_TOKEN env variables must be set" 错误。
+    // 数据迁移也在首次访问时触发，不阻塞构造。
+  }
+
+  /** 延迟获取存储实例：首次访问时创建并启动一次性数据迁移 */
+  private get storage(): IStorage {
+    if (!this._storage) {
+      this._storage = getStorage();
+      if (
+        this._storage &&
+        typeof (this._storage as any).migrateData === 'function'
+      ) {
+        this.migrationPromise = (this._storage as any)
+          .migrateData()
+          .then(async () => {
+            // 数据结构迁移完成后，执行密码哈希迁移
+            if (typeof (this._storage as any).migratePasswords === 'function') {
+              await (this._storage as any).migratePasswords();
+            }
+          })
+          .catch((err: any) => {
+            console.error('数据迁移异常:', err);
+          });
+      }
     }
+    return this._storage!;
   }
 
   /** 等待迁移完成（内部方法，首次调用后 migrationPromise 会被置空） */
   private async ensureMigrated(): Promise<void> {
+    // 先确保存储实例已创建（触发迁移启动），再等待迁移完成
+    void this.storage;
     if (this.migrationPromise) {
       await this.migrationPromise;
       this.migrationPromise = null;
