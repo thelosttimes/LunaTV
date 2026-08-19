@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 #
-# LunaTV · Cloudflare 一键部署脚本
-# 将 Next.js 应用部署到 Cloudflare Pages（next-on-pages），并可部署代理 Worker。
+# LunaTV · Cloudflare Workers 一键部署脚本（OpenNext 适配器）
+# 将 Next.js 应用部署到 Cloudflare Worker（Node.js 运行时），并可部署代理 Worker。
 # 文档：./CLOUDFLARE_DEPLOY.md
 #
 # 用法：
@@ -55,12 +55,6 @@ if ! command -v pnpm >/dev/null 2>&1; then
 fi
 ok "pnpm $(pnpm -v 2>/dev/null || echo 'via corepack')"
 
-# ---------- 检查 / 安装 wrangler（便于本地交互使用，CI 中也会自动安装） ----------
-if ! command -v wrangler >/dev/null 2>&1; then
-  info "本地未找到 wrangler，尝试 npm i -g wrangler"
-  npm i -g wrangler >/dev/null 2>&1 || warn "全局安装 wrangler 失败，将改用 npx（需联网）"
-fi
-
 # ---------- Cloudflare 认证 ----------
 if [ -z "${CLOUDFLARE_API_TOKEN:-}" ]; then
   warn "未设置 CLOUDFLARE_API_TOKEN，尝试 wrangler login（交互式浏览器登录）"
@@ -75,12 +69,11 @@ fi
 info "安装项目依赖 (pnpm install)"
 pnpm install
 
-# ---------- 安装 Cloudflare 构建工具（本地，不修改提交到仓库的 package.json） ----------
-info "安装 @cloudflare/next-on-pages"
-pnpm add -D wrangler @cloudflare/next-on-pages >/dev/null 2>&1 || warn "pnpm add 失败，将改用 npx 直接调用"
-
-# ---------- 构建时环境变量（NEXT_PUBLIC_* 必须在此导出才会内联进前端） ----------
-export NEXT_ON_PAGES=1
+# ---------- 构建时环境变量 ----------
+# NEXT_PUBLIC_* 必须在「构建时」导出才会内联进前端包。
+# OPEN_NEXT_BUILD=1 让 next.config.js 在 OpenNext 构建时禁用 output:'standalone'（Docker 才需要 standalone）。
+# UPSTASH_* 已写死在 wrangler.jsonc [vars]（运行时读取），这里也导出一份以防万一。
+export OPEN_NEXT_BUILD=1
 export NEXT_PUBLIC_STORAGE_TYPE="${NEXT_PUBLIC_STORAGE_TYPE:-upstash}"
 export NEXT_PUBLIC_SITE_NAME="${NEXT_PUBLIC_SITE_NAME:-LunaTV}"
 export NEXT_PUBLIC_SEARCH_MAX_PAGE="${NEXT_PUBLIC_SEARCH_MAX_PAGE:-5}"
@@ -90,46 +83,37 @@ export NEXT_PUBLIC_FLUID_SEARCH="${NEXT_PUBLIC_FLUID_SEARCH:-true}"
 [ -n "${NEXT_PUBLIC_DISABLE_YELLOW_FILTER:-}" ] && export NEXT_PUBLIC_DISABLE_YELLOW_FILTER
 [ -n "${NEXT_PUBLIC_DOUBAN_PROXY_TYPE:-}" ] && export NEXT_PUBLIC_DOUBAN_PROXY_TYPE
 [ -n "${NEXT_PUBLIC_DOUBAN_IMAGE_PROXY_TYPE:-}" ] && export NEXT_PUBLIC_DOUBAN_IMAGE_PROXY_TYPE
-
-# Upstash 凭据：Cloudflare 运行时不支持 TCP，必须用 Upstash；
-# 且 next build 在「构建阶段」就会读取 UPSTASH_URL/UPSTASH_TOKEN（见 src/lib/upstash.db.ts），
-# 因此必须在构建前导出。下面已「写死」默认值；若环境变量已存在则优先使用环境变量。
-# ⚠️ 安全提示：这些值会随脚本提交到公开仓库。如怀疑泄露，请到 Upstash 控制台重置 REST token。
 export UPSTASH_URL="${UPSTASH_URL:-https://awaited-lizard-38990.upstash.io}"
 export UPSTASH_TOKEN="${UPSTASH_TOKEN:-AZhOAAIgcDFlZDg4NTBmNzE0ODc0NDM1ODVmMmJkOGEwYWE5NTdjMw}"
 
-if [ "${NEXT_PUBLIC_STORAGE_TYPE}" = "upstash" ]; then
-  export UPSTASH_URL
-  export UPSTASH_TOKEN
-fi
-
 info "存储类型: ${NEXT_PUBLIC_STORAGE_TYPE}（Cloudflare 仅支持 upstash）"
 
-# ---------- 构建 ----------
-info "构建 Next.js -> Cloudflare Pages (next-on-pages)"
-npx @cloudflare/next-on-pages
-ok "构建完成：.vercel/output/static"
+# ---------- 构建（OpenNext -> Cloudflare Worker） ----------
+# opennextjs-cloudflare build 会在内部调用 next build（即 package.json 的 build 脚本：
+# pnpm gen:manifest && next build），生成 .open-next/worker.js 与 .open-next/assets。
+info "构建 Next.js -> Cloudflare Worker (OpenNext)"
+node scripts/generate-manifest.js && pnpm exec opennextjs-cloudflare build
+ok "构建完成：.open-next/"
 
-# ---------- 部署 Pages ----------
-info "部署到 Cloudflare Pages 项目: ${PROJECT_NAME}"
-$WRANGLER_CMD pages deploy .vercel/output/static --project-name "$PROJECT_NAME" --commit-dirty=true
-ok "Pages 部署完成"
+# ---------- 部署 Worker ----------
+info "部署到 Cloudflare Worker 项目: ${PROJECT_NAME}"
+pnpm exec opennextjs-cloudflare deploy
+ok "Worker 部署完成"
 
-# ---------- 设置运行时机密 ----------
+# ---------- 设置运行时机密（可选） ----------
+# UPSTASH_URL/TOKEN 已写死在 wrangler.jsonc [vars]；以下仅补充管理员凭据（如有）。
 set_secret() {
   local name="$1"; local val="${2:-}"
   if [ -z "$val" ]; then
-    warn "未提供 $name，跳过（应用运行时可能报错）。可到 Cloudflare 面板手动设置。"
+    warn "未提供 $name，跳过（如需管理员登录请到 Cloudflare 面板或执行 wrangler secret put $name）"
     return
   fi
-  info "设置 Pages 机密: $name"
-  printf '%s' "$val" | $WRANGLER_CMD pages secret put "$name" --project-name "$PROJECT_NAME" >/dev/null 2>&1 \
+  info "设置 Worker 机密: $name"
+  printf '%s' "$val" | $WRANGLER_CMD secret put "$name" >/dev/null 2>&1 \
     && ok "$name 已设置" || warn "$name 设置失败，请到 Cloudflare 面板手动设置"
 }
 set_secret USERNAME "${USERNAME:-}"
 set_secret PASSWORD "${PASSWORD:-}"
-set_secret UPSTASH_URL "${UPSTASH_URL:-}"
-set_secret UPSTASH_TOKEN "${UPSTASH_TOKEN:-}"
 
 # ---------- 部署代理 Worker（可选） ----------
 if [ "${DEPLOY_PROXY_WORKER}" = "true" ]; then
@@ -140,4 +124,4 @@ else
   info "跳过代理 Worker 部署（DEPLOY_PROXY_WORKER != true）"
 fi
 
-ok "🎉 全部完成！访问你的 Cloudflare Pages 域名查看站点。"
+ok "🎉 全部完成！访问你的 Cloudflare Worker 域名查看站点。"

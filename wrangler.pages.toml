@@ -1,0 +1,9 @@
+# LunaTV · Cloudflare Pages 配置（已废弃 / Legacy）
+#
+# 本项目已迁移到 Cloudflare Workers（OpenNext 适配器）。
+# 新的 Worker 配置见 ./wrangler.jsonc，部署说明见 ./CLOUDFLARE_DEPLOY.md。
+#
+# 此文件仅作历史参考，不再被任何部署流程使用。
+# 原 Pages 配置（pages_build_output_dir / [vars] / compatibility_flags）已迁移到 wrangler.jsonc。
+#
+# 如需查看迁移前的完整 Pages 配置，请查阅本文件的历史提交（git log）。

@@ -1,0 +1,36 @@
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "lunatv",
+  "main": ".open-next/worker.js",
+  "compatibility_date": "2024-12-30",
+  "compatibility_flags": [
+    // Enable Node.js APIs (crypto.scryptSync, timers, etc.) — required for OpenNext on Workers
+    "nodejs_compat",
+    // Allow the Worker to fetch public URLs (video sources, Upstash REST)
+    "global_fetch_strictly_public"
+  ],
+  "assets": {
+    "directory": ".open-next/assets",
+    "binding": "ASSETS"
+  },
+  "services": [
+    {
+      "binding": "WORKER_SELF_REFERENCE",
+      // Must match the "name" above
+      "service": "lunatv"
+    }
+  ],
+  // 运行时环境变量（非机密）。
+  // NEXT_PUBLIC_* 同时需要在「构建时」通过 CI/脚本导出才会内联进前端包。
+  // UPSTASH_* 已写死（Cloudflare 运行时不支持 TCP，只能走 Upstash REST）。
+  // ⚠️ 这些值会随公开仓库暴露，如怀疑泄露请到 Upstash 控制台重置 REST token 后更新此处。
+  "vars": {
+    "NEXT_PUBLIC_STORAGE_TYPE": "upstash",
+    "NEXT_PUBLIC_SITE_NAME": "LunaTV",
+    "NEXT_PUBLIC_SEARCH_MAX_PAGE": "5",
+    "NEXT_PUBLIC_FLUID_SEARCH": "true",
+    "UPSTASH_URL": "https://awaited-lizard-38990.upstash.io",
+    "UPSTASH_TOKEN": "AZhOAAIgcDFlZDg4NTBmNzE0ODc0NDM1ODVmMmJkOGEwYWE5NTdjMw"
+    // 管理员凭据 USERNAME / PASSWORD 请通过 `wrangler secret put` 或 Cloudflare 面板设置（不要写死在公开仓库）
+  }
+}

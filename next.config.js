@@ -1,11 +1,16 @@
 /** @type {import('next').NextConfig} */
 /* eslint-disable @typescript-eslint/no-var-requires */
 
-// Cloudflare Pages 构建时禁用 standalone（next-on-pages 不兼容 output: 'standalone'）
-// CF_PAGES 在 Cloudflare 构建/运行环境中都会被设置（值可能是 "1" 或 "true"），
-// 因此用 !!process.env.CF_PAGES 统一判断，避免严格比较漏判。
+// Cloudflare 构建时禁用 standalone：
+// - 旧方案 next-on-pages（Pages）不兼容 output:'standalone'；
+// - 新方案 OpenNext（Workers）同样不需要 standalone；
+// - Docker 部署才需要 standalone（见 Dockerfile）。
+// OpenNext 构建时通过 OPEN_NEXT_BUILD=1 标记（deploy 脚本 / CI 设置），
+// 此时与 CF_PAGES / NEXT_ON_PAGES 一样禁用 standalone。
 const isCloudflareBuild =
-  process.env.NEXT_ON_PAGES === '1' || !!process.env.CF_PAGES;
+  process.env.NEXT_ON_PAGES === '1' ||
+  !!process.env.CF_PAGES ||
+  process.env.OPEN_NEXT_BUILD === '1';
 const nextConfig = {
   ...(isCloudflareBuild ? {} : { output: 'standalone' }),
   eslint: {
