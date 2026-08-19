@@ -2,8 +2,10 @@
 /* eslint-disable @typescript-eslint/no-var-requires */
 
 // Cloudflare Pages 构建时禁用 standalone（next-on-pages 不兼容 output: 'standalone'）
+// CF_PAGES 在 Cloudflare 构建/运行环境中都会被设置（值可能是 "1" 或 "true"），
+// 因此用 !!process.env.CF_PAGES 统一判断，避免严格比较漏判。
 const isCloudflareBuild =
-  process.env.NEXT_ON_PAGES === '1' || process.env.CF_PAGES === '1';
+  process.env.NEXT_ON_PAGES === '1' || !!process.env.CF_PAGES;
 const nextConfig = {
   ...(isCloudflareBuild ? {} : { output: 'standalone' }),
   eslint: {

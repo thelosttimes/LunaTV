@@ -48,7 +48,7 @@ jobs:
           NEXT_PUBLIC_DISABLE_YELLOW_FILTER: ${{ vars.NEXT_PUBLIC_DISABLE_YELLOW_FILTER }}
           NEXT_PUBLIC_DOUBAN_PROXY_TYPE: ${{ vars.NEXT_PUBLIC_DOUBAN_PROXY_TYPE }}
           NEXT_PUBLIC_DOUBAN_IMAGE_PROXY_TYPE: ${{ vars.NEXT_PUBLIC_DOUBAN_IMAGE_PROXY_TYPE }}
-        run: npx @cloudflare/next-on-pages
+        run: node scripts/generate-manifest.js && npx @cloudflare/next-on-pages
 
       - name: Deploy to Cloudflare Pages
         env:

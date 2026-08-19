@@ -6,12 +6,19 @@ name = "lunatv"
 compatibility_date = "2024-11-01"
 compatibility_flags = ["nodejs_compat"]
 
-# next-on-pages 构建产物目录（执行 wrangler pages deploy 时自动读取）
+# next-on-pages 构建产物目录（Cloudflare Pages Git 集成会自动读取）
 pages_build_output_dir = ".vercel/output/static"
 
+# 构建命令：Cloudflare Pages Git 集成检测到 wrangler.toml 后会自动执行：
+#   1) node scripts/generate-manifest.js  —— 生成 public/manifest.json（构建必需）
+#   2) npx @cloudflare/next-on-pages      —— 把 Next.js 编译到上面的 pages_build_output_dir
+# NEXT_PUBLIC_* 在这里「构建时」导出，确保被内联进前端包。
+# 想自定义站点名 / 豆瓣代理等，直接改下面的 export 即可。
+[build]
+command = "NEXT_TELEMETRY_DISABLED=1 NEXT_ON_PAGES=1 NEXT_PUBLIC_STORAGE_TYPE=upstash NEXT_PUBLIC_SITE_NAME=LunaTV NEXT_PUBLIC_SEARCH_MAX_PAGE=5 NEXT_PUBLIC_FLUID_SEARCH=true node scripts/generate-manifest.js && npx @cloudflare/next-on-pages"
+
 # 运行时环境变量（非机密）。
-# 注意：NEXT_PUBLIC_* 变量需在「构建时」通过 shell 导出才会被内联进前端包，
-#       此处仅作为运行时兜底；真正生效请在 deploy-cloudflare.sh 或 CI 中 export。
+# 注意：NEXT_PUBLIC_* 已在上面的构建命令中导出并内联；此处作为运行时兜底。
 [vars]
 NEXT_PUBLIC_STORAGE_TYPE = "upstash"
 NEXT_PUBLIC_SITE_NAME = "LunaTV"
@@ -24,5 +31,7 @@ NEXT_PUBLIC_FLUID_SEARCH = "true"
 # NEXT_PUBLIC_DOUBAN_PROXY_TYPE = "cmliussss-cdn-tencent"
 # NEXT_PUBLIC_DOUBAN_IMAGE_PROXY_TYPE = "cmliussss-cdn-tencent"
 
-# 机密（USERNAME / PASSWORD / UPSTASH_URL / UPSTASH_TOKEN）请使用：
+# 机密（USERNAME / PASSWORD / UPSTASH_URL / UPSTASH_TOKEN）请在 Cloudflare 面板
+#   Pages → lunatv → Settings → Variables and Secrets
+# 中添加，或本地执行：
 #   npx wrangler pages secret put <NAME> --project-name lunatv
