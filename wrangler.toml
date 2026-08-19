@@ -26,11 +26,20 @@ pages_build_output_dir = ".vercel/output/static"
 # 运行时环境变量（非机密）。
 # 注意：NEXT_PUBLIC_* 必须在「构建时」通过 CI / 面板 Build 变量导出才会内联进前端包；
 #       仅写在 [vars] 只会作为运行时变量，不会内联。
+#
+# ⚠️ 关键：因为本文件含 pages_build_output_dir，它是 Cloudflare Pages 的
+#   「唯一事实来源(source of truth)」——面板里设置的同名变量/机密将被忽略，
+#   运行时只读这里的 [vars]。因此运行时需要的 UPSTASH_URL/UPSTASH_TOKEN
+#   必须写在这里，否则应用运行时会报 "UPSTASH_URL and UPSTASH_TOKEN env variables must be set"。
 [vars]
 NEXT_PUBLIC_STORAGE_TYPE = "upstash"
 NEXT_PUBLIC_SITE_NAME = "LunaTV"
 NEXT_PUBLIC_SEARCH_MAX_PAGE = "5"
 NEXT_PUBLIC_FLUID_SEARCH = "true"
+# Upstash 运行时凭据（已写死）。CF 运行时不支持 TCP，只能走 Upstash REST。
+# ⚠️ 这些值会随公开仓库暴露，如怀疑泄露请到 Upstash 控制台重置 REST token 后更新此处。
+UPSTASH_URL = "https://awaited-lizard-38990.upstash.io"
+UPSTASH_TOKEN = "AZhOAAIgcDFlZDg4NTBmNzE0ODc0NDM1ODVmMmJkOGEwYWE5NTdjMw"
 # 可选，按需取消注释并修改：
 # SITE_BASE = "https://your-domain.pages.dev"
 # ANNOUNCEMENT = "欢迎使用 LunaTV"
@@ -38,6 +47,7 @@ NEXT_PUBLIC_FLUID_SEARCH = "true"
 # NEXT_PUBLIC_DOUBAN_PROXY_TYPE = "cmliussss-cdn-tencent"
 # NEXT_PUBLIC_DOUBAN_IMAGE_PROXY_TYPE = "cmliussss-cdn-tencent"
 
-# 机密（USERNAME / PASSWORD / UPSTASH_URL / UPSTASH_TOKEN）请在 Cloudflare 面板
-#   Pages → lunatv → Settings → Variables and Secrets 中添加，或：
-#   npx wrangler pages secret put <NAME> --project-name lunatv
+# 管理员登录凭据（USERNAME / PASSWORD）如需运行时生效，同样要写在 [vars]（面板会被忽略）。
+# 例如取消下面两行注释并填入你的值：
+# USERNAME = "admin"
+# PASSWORD = "your-strong-password"
