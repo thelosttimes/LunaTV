@@ -91,6 +91,19 @@ export NEXT_PUBLIC_FLUID_SEARCH="${NEXT_PUBLIC_FLUID_SEARCH:-true}"
 [ -n "${NEXT_PUBLIC_DOUBAN_PROXY_TYPE:-}" ] && export NEXT_PUBLIC_DOUBAN_PROXY_TYPE
 [ -n "${NEXT_PUBLIC_DOUBAN_IMAGE_PROXY_TYPE:-}" ] && export NEXT_PUBLIC_DOUBAN_IMAGE_PROXY_TYPE
 
+# Upstash 凭据：Cloudflare 运行时不支持 TCP，必须用 Upstash；
+# 且 next build 在「构建阶段」就会读取 UPSTASH_URL/UPSTASH_TOKEN（见 src/lib/upstash.db.ts），
+# 因此必须在构建前导出，不能只留到部署后设为运行时 Secret。
+if [ "${NEXT_PUBLIC_STORAGE_TYPE}" = "upstash" ]; then
+  if [ -z "${UPSTASH_URL:-}" ] || [ -z "${UPSTASH_TOKEN:-}" ]; then
+    error "存储类型为 upstash，但缺少 UPSTASH_URL / UPSTASH_TOKEN 环境变量。"
+    error "请在环境变量或 .env.cloudflare 中设置后再运行本脚本（部署后在运行时也会用到这两个值）。"
+    exit 1
+  fi
+  export UPSTASH_URL
+  export UPSTASH_TOKEN
+fi
+
 info "存储类型: ${NEXT_PUBLIC_STORAGE_TYPE}（Cloudflare 仅支持 upstash）"
 
 # ---------- 构建 ----------
