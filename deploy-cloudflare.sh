@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 #
 # LunaTV · Cloudflare 一键部署脚本
-# 将 Next.js 应用部署到 Cloudflare Pages（next-on-pages），并可选部署代理 Worker。
+# 将 Next.js 应用部署到 Cloudflare Pages（next-on-pages），并可部署代理 Worker。
 # 文档：./CLOUDFLARE_DEPLOY.md
 #
 # 用法：
@@ -93,13 +93,12 @@ export NEXT_PUBLIC_FLUID_SEARCH="${NEXT_PUBLIC_FLUID_SEARCH:-true}"
 
 # Upstash 凭据：Cloudflare 运行时不支持 TCP，必须用 Upstash；
 # 且 next build 在「构建阶段」就会读取 UPSTASH_URL/UPSTASH_TOKEN（见 src/lib/upstash.db.ts），
-# 因此必须在构建前导出，不能只留到部署后设为运行时 Secret。
+# 因此必须在构建前导出。下面已「写死」默认值；若环境变量已存在则优先使用环境变量。
+# ⚠️ 安全提示：这些值会随脚本提交到公开仓库。如怀疑泄露，请到 Upstash 控制台重置 REST token。
+export UPSTASH_URL="${UPSTASH_URL:-https://awaited-lizard-38990.upstash.io}"
+export UPSTASH_TOKEN="${UPSTASH_TOKEN:-AZhOAAIgcDFlZDg4NTBmNzE0ODc0NDM1ODVmMmJkOGEwYWE5NTdjMw}"
+
 if [ "${NEXT_PUBLIC_STORAGE_TYPE}" = "upstash" ]; then
-  if [ -z "${UPSTASH_URL:-}" ] || [ -z "${UPSTASH_TOKEN:-}" ]; then
-    error "存储类型为 upstash，但缺少 UPSTASH_URL / UPSTASH_TOKEN 环境变量。"
-    error "请在环境变量或 .env.cloudflare 中设置后再运行本脚本（部署后在运行时也会用到这两个值）。"
-    exit 1
-  fi
   export UPSTASH_URL
   export UPSTASH_TOKEN
 fi
