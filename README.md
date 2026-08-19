@@ -45,6 +45,7 @@
 - [部署](#部署)
   - [一键部署](#zeabur-一键部署)
   - [Docker 部署](#Kvrocks-存储推荐)
+  - [Cloudflare Pages 部署](#cloudflare-pages-部署)
 - [配置文件](#配置文件)
 - [订阅](#订阅)
 - [自动更新](#自动更新)
@@ -65,11 +66,21 @@
 | 语言      | TypeScript 4                                                                                          |
 | 播放器    | [ArtPlayer](https://github.com/zhw2590582/ArtPlayer) · [HLS.js](https://github.com/video-dev/hls.js/) |
 | 代码质量  | ESLint · Prettier · Jest                                                                              |
-| 部署      | Docker                                                                    |
+| 部署      | Docker · Cloudflare Pages                                                                             |
 
 ## 部署
 
-本项目**仅支持 Docker 或其他基于 Docker 的平台** 部署。
+本项目支持 **Docker** 与 **Cloudflare Pages** 两种部署方式（Cloudflare 详见 [CLOUDFLARE_DEPLOY.md](./CLOUDFLARE_DEPLOY.md)）。
+
+### Cloudflare Pages 部署
+
+通过 **Cloudflare Pages** + [@cloudflare/next-on-pages](https://github.com/cloudflare/next-on-pages) 将 LunaTV 部署到 Cloudflare 全球边缘网络，并配套独立的代理 Worker（`proxy.worker.js`）。
+
+- 📘 完整文档与排错：[CLOUDFLARE_DEPLOY.md](./CLOUDFLARE_DEPLOY.md)
+- 🚀 本地一键部署：`deploy-cloudflare.sh`
+- ⚙️ 推送即自动部署：`.github/workflows/deploy-cloudflare.yml`
+
+> ⚠️ Cloudflare 运行时不支持 TCP，存储**必须使用 Upstash**（`NEXT_PUBLIC_STORAGE_TYPE=upstash`）。
 
 ### zeabur 一键部署
 
