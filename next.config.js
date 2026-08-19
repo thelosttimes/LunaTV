@@ -1,5 +1,6 @@
 /** @type {import('next').NextConfig} */
 /* eslint-disable @typescript-eslint/no-var-requires */
+const path = require('path');
 
 // Cloudflare 构建时禁用 standalone：
 // - 旧方案 next-on-pages（Pages）不兼容 output:'standalone'；
@@ -74,6 +75,17 @@ const nextConfig = {
       tls: false,
       crypto: false,
     };
+
+    // Cloudflare Worker 运行时不支持 TCP（node:net / node:tls）。
+    // 本项目在 CF 上只用 Upstash（HTTP），但 db.ts 仍静态引用了 TCP 版 redis 包。
+    // 用占位模块替换它，确保 .next 产物（OpenNext 的 esbuild 步骤会重新打包它）
+    // 不含 node:net。仅当 STORAGE_TYPE=redis|kvrocks 时才会真正调用，CF 上不会发生。
+    if (isCloudflareBuild) {
+      config.resolve.alias = {
+        ...(config.resolve.alias || {}),
+        redis: path.resolve(__dirname, 'src/lib/redis-stub.js'),
+      };
+    }
 
     return config;
   },
